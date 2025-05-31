@@ -1,0 +1,45 @@
+#gitignore for fastapi pyhton
+
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+*.env
+*.DS_Store
+*.egg-info/
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+# Ignore coverage reports
+.coverage
+# Ignore mypy cache
+.mypy_cache/
+# Ignore pytest cache
+.pytest_cache/
+# Ignore Pylint cache
+.pylint.d/
+# Ignore virtual environment directories
+# Ignore build directories
+build/
+dist/
+# Ignore Python bytecode files
+*.py[cod]
+# Ignore Cython files
+*.so
+# Ignore PyInstaller files
+*.spec
+# Ignore local configuration files
+*.local
+# Ignore IDE/editor specific files
+.vscode/
+.idea/
+# Ignore Docker files
+Dockerfile
+docker-compose.yml
+# Ignore FastAPI specific files
+# Ignore static files
+static/
+# Ignore media files
