@@ -1,14 +1,13 @@
-# app/processors/forums.py
 # from .base import BaseProcessor
-# from utils.chunkers import resource_chunker
-# from utils.moodle_helpers import clean_html_content, extract_file_text
-# from typing import Dict
-# class ForumProcessor:
-#     async def process(self, course_id, content):
-#         clean_text = strip_html(content["message"])
-#         metadata = {
+# from utils.llama_helpers import create_document
+
+# class ForumProcessor(BaseProcessor):
+#     async def process(self, course_id: str, content: Dict):
+#         text = f"FORUM POST by {content['author']}\n\n{content['message']}"
+#         document = create_document(text, {
+#             "type": "forum",
 #             "author": content["author"],
-#             "tags": content["tags"],
-#             "type": "forum_post"
-#         }
-#         await index_chunks(course_id, [clean_text], metadata)
+#             "post_date": content["created"],
+#             "course_id": course_id
+#         })
+#         self.index_manager.add_documents(course_id, [document])

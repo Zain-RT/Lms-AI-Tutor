@@ -43,3 +43,6 @@ docker-compose.yml
 # Ignore static files
 static/
 # Ignore media files
+
+app/temp/
+app/storage/

@@ -5,18 +5,19 @@ from pathlib import Path
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 class Config:
+    # Storage configuration
+    STORAGE_PATH = "storage"
+    TEMP_DIR="temp"
     # Embedding configuration
-    EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-    EMBEDDING_DEVICE = "cpu"
+    EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
     
-    # Index configuration
-    FAISS_INDEX_PATH = "data/faiss_index"
-    INDEX_METADATA_PATH = "data/metadata.json"
-    
-    # Processing configuration
-    CHUNK_SIZE = 1000
+    # LlamaIndex configuration
+    CHUNK_SIZE = 1024
     CHUNK_OVERLAP = 200
-    MAX_CONTEXT_LENGTH = 4096
+    SIMILARITY_TOP_K = 5
+    
+    # Moodle integration
+    MOODLE_API_KEY = os.getenv("MOODLE_API_KEY")
     
     # Groq configuration
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")

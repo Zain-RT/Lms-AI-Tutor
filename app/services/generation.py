@@ -1,25 +1,31 @@
-# services/generation.py
 from groq import Groq
 from config import Config
 import logging
 
+logger = logging.getLogger(__name__)
+
 class GenerationService:
-    def __init__(self):
-        self.client = Groq(api_key=Config.GROQ_API_KEY)
-        self.model = Config.GROQ_MODEL
-        logging.info(f"Initialized Groq client with model: {self.model}")
-
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.client = Groq(api_key=Config.GROQ_API_KEY)
+            cls._instance.model = Config.GROQ_MODEL
+            logger.info(f"Initialized Groq client with model: {cls._instance.model}")
+        return cls._instance
+    
     def generate_response(self, context: str, query: str) -> str:
-        """Generate answer using Groq LLM"""
         try:
-            prompt = f"""You are a helpful course assistant. Use this context to answer the question.
-            If unsure, say you don't know. Be concise and accurate.
-
+            prompt = f"""You are a helpful course assistant. Use ONLY the context below to answer the question.
+            If the answer isn't in the context, say you don't know. Be concise and accurate.
+            Include source numbers like [1] when using specific information.
+            
             Context:
             {context}
-
+            
             Question: {query}
-
+            
             Answer:"""
             
             response = self.client.chat.completions.create(
@@ -31,5 +37,5 @@ class GenerationService:
             return response.choices[0].message.content
             
         except Exception as e:
-            logging.error(f"Generation error: {str(e)}")
+            logger.error(f"Generation error: {str(e)}")
             return "I couldn't generate a response at this time."

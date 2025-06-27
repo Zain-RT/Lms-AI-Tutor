@@ -1,13 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from services import IndexManager, EmbeddingService
-from schemas import MoodleActivity, SearchRequest, SearchResult, SearchResponse
+from services import IndexManager, GenerationService
 from processors import get_processor
+from schemas import MoodleActivity, SearchRequest, SearchResponse
 import logging
-from services import GenerationService
-from typing import List
+from config import Config
 
-app = FastAPI(title="Moodle Course Bot API", version="1.0.0")
+app = FastAPI(title="Moodle Course Bot (LlamaIndex)", version="1.0.0")
 
 # CORS Configuration
 app.add_middleware(
@@ -21,47 +20,51 @@ app.add_middleware(
 # Initialize services on startup
 @app.on_event("startup")
 async def startup_event():
-    try:
-        # Warm up services
-        EmbeddingService().encode("warmup")
-        IndexManager().search("warmup")
-        logging.info("Services initialized successfully")
-    except Exception as e:
-        logging.error(f"Startup failed: {str(e)}")
-        raise
+    logging.info("Services initialized successfully")
 
 @app.post("/activities", status_code=202)
 async def process_activity(activity: MoodleActivity):
-    """Endpoint for processing Moodle activities"""
-    try:
-        processor = get_processor(activity.type)
-        if not processor:
-            raise HTTPException(status_code=400, detail="Unsupported activity type")
-        
-        await processor().process(activity.course_id, activity.content)
-        return {"status": "Processing started"}
-    
-    except Exception as e:
-        logging.error(f"Activity processing error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    processor = get_processor(activity.type)
+    if not processor:
+        raise HTTPException(status_code=400, detail="Unsupported activity type")
+    print(activity)
+    await processor().process(activity.course_id, activity.content)
+    return {"status": "Processing started"}
 
-@app.post("/search", response_model=List[SearchResult])
+@app.post("/search", response_model=SearchResponse)
 async def search_content(request: SearchRequest):
-    """Search across course content"""
-    try:
-        results = IndexManager().search(
-            query=request.query,
-            course_id=request.course_id,
-            top_k=request.top_k,
-            threshold=request.threshold
-        )
-        return [SearchResult(**result) for result in results]
+    # Retrieve relevant nodes
+    nodes = IndexManager().search(request.course_id, request.query)
     
-    except Exception as e:
-        logging.error(f"Search error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    if not nodes:
+        return SearchResponse(
+            answer="No relevant information found",
+            sources=[]
+        )
+    
+    # Generate answer
+    context = "\n\n".join([
+        f"Source {i+1} (Score: {node.score:.2f}):\n{node.text}" 
+        for i, node in enumerate(nodes)
+    ])
+    
+    answer = GenerationService().generate_response(context, request.query)
+    
+    # Format sources
+    sources = []
+    for node in nodes:
+        metadata = node.metadata or {}
+        sources.append({
+            "text": node.text,
+            "score": node.score,
+            "metadata": metadata
+        })
+    
+    return SearchResponse(
+        answer=answer,
+        sources=sources
+    )
 
-# main.py
 @app.post("/chat", response_model=SearchResponse)
 async def search_content(request: SearchRequest):
     """Search and generate response"""
@@ -91,9 +94,7 @@ async def search_content(request: SearchRequest):
 async def health_check():
     """System health endpoint"""
     return {
-        "status": "healthy",
-        "index_size": IndexManager().index.ntotal,
-        "courses": len(IndexManager().course_map)
+        "status": "healthy"
     }
 
 # Add this temporary endpoint to check indexed content

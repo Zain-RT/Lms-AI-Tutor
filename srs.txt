@@ -1,0 +1,18 @@
+Moodle: 
+administrator user, Teacher user, Student user and maybe parent user
+2. Perhaps 2 types of deployment, education and business
+3. When a student is taking a test or assignment, application uses camera and awareness to make sure student is there watching and not on another browser tab
+4. Create lessons using AI prompts and feeding material (pdf, video, powerpoint etc)
+5. AI generated assignments, test and quizzes
+6. AI chatbot that is focused on the current course that can assist with a students understanding of the material
+7. Auto generated practice assignments
+8. After a test, quiz or assign,ent, AI can provide insight on things that student got wrong and what aspect of the lesson to focus on
+9. Ability to upload and store lectures, video courses or presentations, extract and transcribe then provide search and interaction based on the lectures or seminars etc. So a student may 'attend' a class by watching the recorded class, it monitors the student to ensure they are there, a notes section for the student etc. Like doing an assignment, but it is watching the class.
+10 Ability to search with AI across recorded classes for insight, or to rewatch a part of a presentation etc
+11. realtime 'captions' of or tranlations into another language for foreign language students (if we could do auto voiceovers in another language... wow awesome
+12. PowerBI integration for robust analytics, dashboards, etc etc... different reporting needs for students, teachers, administrators. etc all normal LMS needs I'm sure.
+
+
+We will have FFireside LMS, a fully AI enabled LMS system for both corporations and education environments
+
+And I'll have even more work for you guys. The important thing is that the fireside AI capabilities and structure that we build, I want it to be robust and flexible enough to be able to create agents, build solutions across the fireside portfolio of products
