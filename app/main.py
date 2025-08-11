@@ -2,7 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from services import IndexManager, GenerationService
 from processors import get_processor
-from schemas import MoodleActivity, SearchRequest, SearchResponse
+from schemas import MoodleActivity, SearchRequest, SearchResponse, LessonCreateRequest, LessonCreateResponse, ResourceGenerateRequest, ResourceGenerateResponse
+from services.resource_service import ResourceService
 import logging
 from config import Config
 
@@ -48,7 +49,12 @@ async def search_content(request: SearchRequest):
         for i, node in enumerate(nodes)
     ])
     
-    answer = GenerationService().generate_response(context, request.query)
+    # Use the new generic interface, set task_type to "search" for clarity
+    answer = GenerationService().generate_response(
+        user_input=request.query,
+        material=context,
+        task_type="search"
+    )
     
     # Format sources
     sources = []
@@ -66,29 +72,44 @@ async def search_content(request: SearchRequest):
     )
 
 @app.post("/chat", response_model=SearchResponse)
-async def search_content(request: SearchRequest):
-    """Search and generate response"""
+async def chat(request: SearchRequest):
+    """Chat endpoint using retrieved context"""
     try:
-        print(f"Received search request: {request.query} for course {request.course_id}")
+        logging.info(f"Received chat request: {request.query} for course {request.course_id}")
         # Retrieve relevant documents
-        results = IndexManager().search(
-            query=request.query,
-            course_id=request.course_id,
-            top_k=request.top_k,
-            threshold=request.threshold
-        )
-        
+        nodes = IndexManager().search(request.course_id, request.query)
+
+        # Build context for generation
+        context = "\n".join([f"Source {i+1}: {getattr(node, 'text', '')}" for i, node in enumerate(nodes)])
+
         # Generate answer
-        context = "\n".join([f"Source {i+1}: {res.text}" for i, res in enumerate(results)])
-        answer = GenerationService().generate_response(context, request.query)
-        
-        return SearchResponse(
-            answer=answer,
-            sources=results
+        answer = GenerationService().generate_response(
+            user_input=request.query,
+            material=context,
+            task_type="chat"
         )
-    
+
+        # Format sources in the same way as /search
+        sources = []
+        for node in nodes:
+            metadata = getattr(node, "metadata", {}) or {}
+            text = getattr(node, "text", None)
+            score = getattr(node, "score", None)
+            if text is None and hasattr(node, "get_content"):
+                try:
+                    text = node.get_content()
+                except Exception:
+                    text = ""
+            sources.append({
+                "text": text or "",
+                "score": float(score) if isinstance(score, (int, float)) else 0.0,
+                "metadata": metadata
+            })
+
+        return SearchResponse(answer=answer, sources=sources)
+
     except Exception as e:
-        logging.error(f"Search error: {str(e)}")
+        logging.error(f"Chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 @app.get("/health")
 async def health_check():
@@ -102,21 +123,54 @@ async def health_check():
 async def debug_course(course_id: str):
     """Debug endpoint to check indexed content"""
     index = IndexManager()
-    if course_id not in index.course_map:
-        return {"error": f"No documents found for course {course_id}"}
-    
-    vector_ids = index.course_map[course_id]
-    sample_docs = []
-    for vid in vector_ids[:3]:  # Show first 3 documents
-        doc = {
-            "vector_id": vid,
-            "metadata": index.metadata.get(vid, {}),
-            "text": "..."  # Truncated for brevity
+    if not index.course_index_exists(course_id):
+        raise HTTPException(status_code=404, detail="Course index not found")
+    try:
+        documents = index.get_course_documents(course_id)
+        return {
+            "course_id": course_id,
+            "documents": [doc.to_dict() for doc in documents]
         }
-        sample_docs.append(doc)
+    except Exception as e:
+        logging.error(f"Debug error for course {course_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 
     
-    return {
-        "course_id": course_id,
-        "document_count": len(vector_ids),
-        "sample_documents": sample_docs
-    }
+   
+
+# @app.post("/lessons", response_model=LessonCreateResponse)
+# async def create_lesson(request: LessonCreateRequest):
+#     """
+#     Create a lesson from uploaded material using AI.
+#     """
+#     try:
+#         lesson = await LessonService().create_lesson(request)
+#         return lesson
+#     except Exception as e:
+#         logging.error(f"Lesson creation error: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate-resource", response_model=ResourceGenerateResponse)
+async def generate_resource(request: ResourceGenerateRequest):
+    """
+    Unified AI resource generator for lessons, assignments, quizzes.
+    """
+    try:
+        resource = await ResourceService().generate(request)
+        return resource
+    except Exception as e:
+        logging.error(f"Resource generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+# write endpoint to list all courses with their indexed documents
+@app.get("/courses")
+async def list_courses():
+    """
+    List all courses with their indexed documents.
+    """
+    try:
+        index_manager = IndexManager()
+        courses = index_manager.list_courses()
+        return {"courses": courses}
+    except Exception as e:
+        logging.error(f"Error listing courses: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 
