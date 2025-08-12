@@ -5,7 +5,10 @@ from .resource import ResourceProcessor
 # from .announcement import AnnouncementProcessor
 
 PROCESSORS = {
-    "resource": ResourceProcessor
+    "resource": ResourceProcessor,
+    # "forum": ForumProcessor,
+    # "event": EventProcessor,
+    # "announcement": AnnouncementProcessor,
 }
 
 def get_processor(activity_type: str):

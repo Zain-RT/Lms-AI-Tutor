@@ -154,7 +154,7 @@ class IndexManager:
         storage_context.persist(persist_dir=str(course_path))
         print(f"Persisted index for course {course_id} at {course_path}")
 
-    def search(self, course_id: str, query: str) -> List[Dict]:
+    def search(self, course_id: str, query: str, top_k: Optional[int] = None) -> List[Dict]:
         """Search within a course-specific index"""
         course_path = self.get_course_storage_path(course_id)
         
@@ -177,7 +177,8 @@ class IndexManager:
             )
             
             # Create retriever
-            retriever = index.as_retriever(similarity_top_k=Config.SIMILARITY_TOP_K)
+            similarity_top_k = top_k if isinstance(top_k, int) and top_k > 0 else Config.SIMILARITY_TOP_K
+            retriever = index.as_retriever(similarity_top_k=similarity_top_k)
             
             # Retrieve results
             nodes = retriever.retrieve(query)

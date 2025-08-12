@@ -1,9 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from services import IndexManager, GenerationService
+from services import IndexManager, GenerationService, ResourceService, LessonService, ChatService
 from processors import get_processor
 from schemas import MoodleActivity, SearchRequest, SearchResponse, LessonCreateRequest, LessonCreateResponse, ResourceGenerateRequest, ResourceGenerateResponse
-from services.resource_service import ResourceService
 import logging
 from config import Config
 
@@ -35,8 +34,15 @@ async def process_activity(activity: MoodleActivity):
 @app.post("/search", response_model=SearchResponse)
 async def search_content(request: SearchRequest):
     # Retrieve relevant nodes
-    nodes = IndexManager().search(request.course_id, request.query)
+    nodes = IndexManager().search(request.course_id, request.query, top_k=request.top_k)
     
+    # Optional threshold filtering
+    if request.threshold is not None:
+        try:
+            nodes = [n for n in nodes if getattr(n, "score", None) is not None and float(n.score) >= float(request.threshold)]
+        except Exception:
+            pass
+
     if not nodes:
         return SearchResponse(
             answer="No relevant information found",
@@ -45,7 +51,7 @@ async def search_content(request: SearchRequest):
     
     # Generate answer
     context = "\n\n".join([
-        f"Source {i+1} (Score: {node.score:.2f}):\n{node.text}" 
+        f"Source {i+1} (Score: {getattr(node, 'score', 0.0):.2f}):\n{getattr(node, 'text', '')}" 
         for i, node in enumerate(nodes)
     ])
     
@@ -59,10 +65,10 @@ async def search_content(request: SearchRequest):
     # Format sources
     sources = []
     for node in nodes:
-        metadata = node.metadata or {}
+        metadata = getattr(node, 'metadata', {}) or {}
         sources.append({
-            "text": node.text,
-            "score": node.score,
+            "text": getattr(node, 'text', ''),
+            "score": float(getattr(node, 'score', 0.0)),
             "metadata": metadata
         })
     
@@ -76,38 +82,15 @@ async def chat(request: SearchRequest):
     """Chat endpoint using retrieved context"""
     try:
         logging.info(f"Received chat request: {request.query} for course {request.course_id}")
-        # Retrieve relevant documents
-        nodes = IndexManager().search(request.course_id, request.query)
-
-        # Build context for generation
-        context = "\n".join([f"Source {i+1}: {getattr(node, 'text', '')}" for i, node in enumerate(nodes)])
-
-        # Generate answer
-        answer = GenerationService().generate_response(
-            user_input=request.query,
-            material=context,
-            task_type="chat"
+        chat_service = ChatService()
+        result = chat_service.chat(
+            course_id=request.course_id,
+            query=request.query,
+            top_k=request.top_k,
+            threshold=request.threshold,
+            session_id=request.session_id,
         )
-
-        # Format sources in the same way as /search
-        sources = []
-        for node in nodes:
-            metadata = getattr(node, "metadata", {}) or {}
-            text = getattr(node, "text", None)
-            score = getattr(node, "score", None)
-            if text is None and hasattr(node, "get_content"):
-                try:
-                    text = node.get_content()
-                except Exception:
-                    text = ""
-            sources.append({
-                "text": text or "",
-                "score": float(score) if isinstance(score, (int, float)) else 0.0,
-                "metadata": metadata
-            })
-
-        return SearchResponse(answer=answer, sources=sources)
-
+        return SearchResponse(answer=result["answer"], sources=result["sources"])
     except Exception as e:
         logging.error(f"Chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -137,17 +120,17 @@ async def debug_course(course_id: str):
     
    
 
-# @app.post("/lessons", response_model=LessonCreateResponse)
-# async def create_lesson(request: LessonCreateRequest):
-#     """
-#     Create a lesson from uploaded material using AI.
-#     """
-#     try:
-#         lesson = await LessonService().create_lesson(request)
-#         return lesson
-#     except Exception as e:
-#         logging.error(f"Lesson creation error: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
+@app.post("/lessons", response_model=LessonCreateResponse)
+async def create_lesson(request: LessonCreateRequest):
+    """
+    Create a lesson from uploaded material using AI.
+    """
+    try:
+        lesson = await LessonService().create_lesson(request)
+        return lesson
+    except Exception as e:
+        logging.error(f"Lesson creation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-resource", response_model=ResourceGenerateResponse)
 async def generate_resource(request: ResourceGenerateRequest):

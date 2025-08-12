@@ -11,6 +11,9 @@ class MoodleActivity(BaseModel):
 class SearchRequest(BaseModel):
     course_id: str
     query: str
+    top_k: Optional[int] = None
+    threshold: Optional[float] = None
+    session_id: Optional[str] = None
 
 class SearchResult(BaseModel):
     text: str
