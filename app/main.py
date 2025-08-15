@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from services import IndexManager, GenerationService, ResourceService, LessonService, ChatService
+from services import IndexManager, GenerationService, ResourceService, LessonService, ChatService, SessionStore
 from processors import get_processor
-from schemas import MoodleActivity, SearchRequest, SearchResponse, LessonCreateRequest, LessonCreateResponse, ResourceGenerateRequest, ResourceGenerateResponse
+from schemas import MoodleActivity, SearchRequest, SearchResponse, LessonCreateRequest, LessonCreateResponse, ResourceGenerateRequest, ResourceGenerateResponse, ChatResponse, ChatMessage
 import logging
 from config import Config
+from datetime import datetime, timedelta
 
 app = FastAPI(title="Moodle Course Bot (LlamaIndex)", version="1.0.0")
 
@@ -17,9 +18,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+session_store = SessionStore()
+
 # Initialize services on startup
 @app.on_event("startup")
 async def startup_event():
+    level_name = getattr(Config, "LOG_LEVEL", "INFO")
+    level = getattr(logging, level_name.upper(), logging.INFO)
+    logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.info("Services initialized successfully")
 
 @app.post("/activities", status_code=202)
@@ -42,7 +48,7 @@ async def search_content(request: SearchRequest):
             nodes = [n for n in nodes if getattr(n, "score", None) is not None and float(n.score) >= float(request.threshold)]
         except Exception:
             pass
-
+    
     if not nodes:
         return SearchResponse(
             answer="No relevant information found",
@@ -77,11 +83,13 @@ async def search_content(request: SearchRequest):
         sources=sources
     )
 
-@app.post("/chat", response_model=SearchResponse)
+@app.post("/chat", response_model=ChatResponse)
 async def chat(request: SearchRequest):
-    """Chat endpoint using retrieved context"""
+    """Chat endpoint using retrieved context and returning full session thread."""
     try:
         logging.info(f"Received chat request: {request.query} for course {request.course_id}")
+        if request.session_id is not None and not session_store.session_exists(request.session_id):
+            raise HTTPException(status_code=404, detail="Session not found or has ended")
         chat_service = ChatService()
         result = chat_service.chat(
             course_id=request.course_id,
@@ -89,8 +97,16 @@ async def chat(request: SearchRequest):
             top_k=request.top_k,
             threshold=request.threshold,
             session_id=request.session_id,
+            expand=bool(request.expand or False),
+            num_expansions=int(request.num_expansions or 3),
+            top_k_per_query=request.top_k_per_query,
         )
-        return SearchResponse(answer=result["answer"], sources=result["sources"])
+        sid = request.session_id or ""
+        messages_raw = session_store.get_session_messages(sid, limit=200) if sid else []
+        messages = [ChatMessage(role=m["role"], content=m["content"], created_at=m["created_at"]) for m in messages_raw]
+        return ChatResponse(session_id=sid, answer=result["answer"], sources=result["sources"], messages=messages)
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -156,4 +172,41 @@ async def list_courses():
         return {"courses": courses}
     except Exception as e:
         logging.error(f"Error listing courses: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 
+
+@app.post("/chat/session")
+async def create_chat_session(course_id: str):
+    try:
+        session_id = session_store.create_session(course_id)
+        return {"session_id": session_id}
+    except Exception as e:
+        logging.error(f"Create session error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat/end")
+async def end_chat_session(session_id: str, delete: bool = False):
+    try:
+        if not session_store.session_exists(session_id):
+            raise HTTPException(status_code=404, detail="Session not found")
+        summary = session_store.end_session(session_id)
+        if delete:
+            session_store.delete_session(session_id)
+        return {"session_id": session_id, "summary": summary, "deleted": delete}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"End session error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 
+
+@app.delete("/chat/session/{session_id}")
+async def delete_chat_session(session_id: str):
+    try:
+        if not session_store.session_exists(session_id):
+            raise HTTPException(status_code=404, detail="Session not found")
+        session_store.delete_session(session_id)
+        return {"session_id": session_id, "deleted": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Delete session error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 

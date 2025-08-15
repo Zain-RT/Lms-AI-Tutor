@@ -14,6 +14,10 @@ class SearchRequest(BaseModel):
     top_k: Optional[int] = None
     threshold: Optional[float] = None
     session_id: Optional[str] = None
+    # Query expansion options
+    expand: Optional[bool] = False
+    num_expansions: Optional[int] = 3
+    top_k_per_query: Optional[int] = None
 
 class SearchResult(BaseModel):
     text: str
@@ -67,3 +71,15 @@ class ResourceGenerateResponse(BaseModel):
     grade: Optional[int] = None
     attempts: Optional[int] = None
     questions: Optional[List[QuizQuestion]] = None
+
+# Chat-specific models
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+    created_at: Optional[str] = None
+
+class ChatResponse(BaseModel):
+    session_id: str
+    answer: str
+    sources: List[SearchResult]
+    messages: List[ChatMessage]

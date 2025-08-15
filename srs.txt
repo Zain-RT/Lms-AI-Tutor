@@ -16,3 +16,32 @@ administrator user, Teacher user, Student user and maybe parent user
 We will have FFireside LMS, a fully AI enabled LMS system for both corporations and education environments
 
 And I'll have even more work for you guys. The important thing is that the fireside AI capabilities and structure that we build, I want it to be robust and flexible enough to be able to create agents, build solutions across the fireside portfolio of products
+
+
+
+What’s now in place for the course bot (point 6)
+Grounded answers: /chat uses only retrieved course context; instructs to decline if context is insufficient.
+Retrieval controls: top_k and optional threshold filtering to tune precision.
+Source citations: returns sources with scores and metadata; formatted in context as [1], [2], etc.
+Session memory: optional session_id to accumulate short chat history for follow-ups.
+Resilient formatting: handles missing node attributes, avoids crashes.
+What’s left for an enterprise-grade course tutor (non-AWS path)
+Better retrieval quality
+Add BM25 re-ranking or hybrid retrieval (dense + keyword).
+Improve metadata extraction (title, page/slide, URL, created_at) during ingestion for richer citations.
+Add deduplication and idempotent activity processing using content hashes.
+Conversation quality
+Hallucination guards: reinforce refusal when out of scope; answer confidence indicator.
+Structured answer modes (summary, step-by-step, examples) via user options.
+Support citations inline with superscripts and a dedicated references list.
+Ingestion breadth
+Re-enable and implement forum, event, announcement processors.
+Background processing for /activities to avoid blocking (FastAPI BackgroundTasks or a local queue).
+Lesson quality (point 4 synergy)
+Video transcription pipeline (Faster-Whisper), PPTX slide-level chunking, PDF page-level metadata.
+Strict JSON schema validation on generation and more robust parsing.
+Auto-index generated lesson content and surface in chat.
+Security and ops
+API key auth or JWT; restricted CORS.
+Structured logging with request IDs; rate limiting.
+Basic tests for ChatService, IndexManager, and parsing logic.

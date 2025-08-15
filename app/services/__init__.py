@@ -5,6 +5,7 @@ from .generation import GenerationService
 from .chat_service import ChatService
 from .resource_service import ResourceService
 from .lesson_service import LessonService
+from .session_store import SessionStore
 
 __all__ = [
     "EmbeddingService",
@@ -13,4 +14,5 @@ __all__ = [
     "ChatService",
     "ResourceService",
     "LessonService",
+    "SessionStore",
 ]
