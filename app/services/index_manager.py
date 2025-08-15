@@ -154,7 +154,7 @@ class IndexManager:
         storage_context.persist(persist_dir=str(course_path))
         print(f"Persisted index for course {course_id} at {course_path}")
 
-    def search(self, course_id: str, query: str) -> List[Dict]:
+    def search(self, course_id: str, query: str, top_k: Optional[int] = None) -> List[Dict]:
         """Search within a course-specific index"""
         course_path = self.get_course_storage_path(course_id)
         
@@ -177,7 +177,8 @@ class IndexManager:
             )
             
             # Create retriever
-            retriever = index.as_retriever(similarity_top_k=Config.SIMILARITY_TOP_K)
+            similarity_top_k = top_k if isinstance(top_k, int) and top_k > 0 else Config.SIMILARITY_TOP_K
+            retriever = index.as_retriever(similarity_top_k=similarity_top_k)
             
             # Retrieve results
             nodes = retriever.retrieve(query)
@@ -197,3 +198,61 @@ class IndexManager:
             print(f"Deleted index for course {course_id}")
         else:
             print(f"No index found for course {course_id}")
+
+
+    def list_courses(self):
+        """
+        List all courses that have an index.
+        For each course, return:
+        - course_id
+        - number of documents
+        - number of vectors (FAISS index size)
+        """
+        course_summaries = []
+
+        for course_dir in self.storage_path.glob("course_*"):
+            if not course_dir.is_dir():
+                continue
+
+            course_id = course_dir.name.replace("course_", "")
+            try:
+                # Load FAISS vector store
+                vector_store = FaissVectorStore.from_persist_dir(str(course_dir))
+
+                # Recreate storage context
+                storage_context = StorageContext.from_defaults(
+                    vector_store=vector_store,
+                    persist_dir=str(course_dir)
+                )
+
+                # Load index
+                index = load_index_from_storage(
+                    storage_context=storage_context,
+                    embed_model=self.embed_model
+                )
+
+                # Get document count
+                documents = index.docstore.docs
+                num_docs = len(documents)
+
+                # Get vector count
+                vector_index = vector_store._faiss_index
+                num_vectors = vector_index.ntotal if vector_index else 0
+
+                # Optionally, collect some metadata from the documents
+                doc_metadata = [
+                    {"id": doc.id_, "text_snippet": doc.text[:60]}
+                    for doc in documents.values()
+                ]
+
+                course_summaries.append({
+                    "course_id": course_id,
+                    "num_documents": num_docs,
+                    "num_vectors": num_vectors,
+                    "documents": doc_metadata  # Optional: remove if too heavy
+                })
+
+            except Exception as e:
+                print(f"Error processing index for course {course_id}: {e}")
+                continue
+        return course_summaries

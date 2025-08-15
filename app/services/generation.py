@@ -15,19 +15,48 @@ class GenerationService:
             logger.info(f"Initialized Groq client with model: {cls._instance.model}")
         return cls._instance
     
-    def generate_response(self, context: str, query: str) -> str:
+    def __init__(self):
+        pass
+
+    def generate_response(self, user_input: str, material: str = "", task_type: str = "default", template: str = None, **kwargs):
+        """
+        Generic AI generation function.
+        - user_input: User's prompt or question.
+        - material: Source material (text), optional.
+        - task_type: Type of AI task (lesson, quiz, summary, etc.).
+        - template: Optional custom template.
+        - kwargs: Additional params for future extensibility.
+        """
+        # Dispatch table for task-specific templates/prompts
+        task_templates = {
+            "lesson": "Create a structured lesson with sections, summary, and quiz from the following material:\n{material}",
+            "quiz": "Generate quiz questions from the following material:\n{material}",
+            "assignment": "Generate an assignment with title, description, duedate, and grade from the following material:\n{material}",
+            "summary": "Summarize the following material:\n{material}",
+            "default": " This is student's questions :{user_input}\nanswer it based on context which is below :{material}"
+        }
+
+        # Select template: custom > task-specific > default
+        if template:
+            prompt = template.format(user_input=user_input, material=material, **kwargs)
+        else:
+            prompt_template = task_templates.get(task_type, task_templates["default"])
+            # If material is empty, use only user_input (prompt)
+            if material:
+                prompt = prompt_template.format(user_input=user_input, material=material, **kwargs)
+            else:
+                # Fallback: use user_input as the main prompt
+                if task_type in task_templates and "{material}" in prompt_template:
+                    prompt = prompt_template.format(user_input=user_input, material=user_input, **kwargs)
+                else:
+                    prompt = user_input
+
+        # Call the AI model (abstracted, e.g., OpenAI, local LLM, etc.)
+        ai_response = self._call_ai_model(prompt)
+        return ai_response
+
+    def _call_ai_model(self, prompt: str):
         try:
-            prompt = f"""You are a helpful course assistant. Use ONLY the context below to answer the question.
-            If the answer isn't in the context, say you don't know. Be concise and accurate.
-            Include source numbers like [1] when using specific information.
-            
-            Context:
-            {context}
-            
-            Question: {query}
-            
-            Answer:"""
-            
             response = self.client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 model=self.model,

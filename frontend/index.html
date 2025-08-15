@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Moodle Course Bot - Frontend Tester</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Moodle Course Bot - Tester</h1>
+  </header>
+  <div class="container">
+    <section class="card">
+      <div class="row">
+        <div>
+          <label>API Base URL</label>
+          <input id="apiBase" type="text" value="http://127.0.0.1:8000" />
+        </div>
+        <div>
+          <label>Course ID</label>
+          <input id="courseId" type="text" placeholder="COURSE123" />
+        </div>
+        <div>
+          <label>Session ID (auto-filled)</label>
+          <input id="sessionId" type="text" placeholder="Create or paste a session id" />
+        </div>
+      </div>
+      <div class="row mt">
+        <div>
+          <label>top_k</label>
+          <input id="topK" type="number" min="1" value="5" />
+        </div>
+        <div>
+          <label>threshold</label>
+          <input id="threshold" type="number" step="0.01" placeholder="(optional)" />
+        </div>
+        <div class="row right">
+          <button id="btnCreate">Create Session</button>
+          <button id="btnEnd" class="secondary">End Session</button>
+          <button id="btnEndDelete" class="danger">End + Delete</button>
+          <button id="btnDelete" class="danger">Delete Session</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card chat">
+      <div class="chat-log" id="chatLog"></div>
+      <div class="row mt">
+        <input id="message" type="text" placeholder="Type your message..." />
+        <button id="btnSend">Send</button>
+      </div>
+      <div class="sources" id="sources"></div>
+    </section>
+
+    <footer>Open this via a local web server for best results. See README.md.</footer>
+  </div>
+
+  <!-- Floating Chat Widget -->
+  <button id="chatFab" class="chat-fab" title="Chat with Tutor">
+    <!-- Simple chat icon -->
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff" aria-hidden="true">
+      <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"></path>
+    </svg>
+  </button>
+
+  <div id="chatWidget" class="chat-widget hidden" aria-hidden="true">
+    <div class="chat-header">
+      <div class="title">Course Tutor — Math</div>
+      <button id="chatClose" class="icon-btn" title="End & Close">×</button>
+    </div>
+    <div id="chatBody" class="chat-body">
+      <div id="chatLogWidget" class="chat-log"></div>
+      <div id="chatSourcesWidget" class="sources"></div>
+    </div>
+    <div class="chat-input">
+      <input id="chatInput" type="text" placeholder="Ask about your Math course..." />
+      <button id="chatSend" class="send-btn">Send</button>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html> 
