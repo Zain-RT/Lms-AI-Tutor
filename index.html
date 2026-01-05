@@ -19,5 +19,25 @@
     <h2>Contact</h2>
     <p>If you have any questions or concerns about this privacy policy, please contact us at <a href="mailto:your-email@example.com">syed.zain@rolustech.com</a>.</p>
   </section>
+  <script type='text/javascript'>
+	function initEmbeddedMessaging() {
+		try {
+			embeddedservice_bootstrap.settings.language = 'en_US'; // For example, enter 'en' or 'en-US'
+
+			embeddedservice_bootstrap.init(
+				'00D0b000000usTM',
+				'Knowldge_base_agent',
+				'https://vanityportraitstudio.my.site.com/ESWKnowldgebaseagent1767616036188',
+				{
+					scrt2URL: 'https://vanityportraitstudio.my.salesforce-scrt.com'
+				}
+			);
+		} catch (err) {
+			console.error('Error loading Embedded Messaging: ', err);
+		}
+	};
+</script>
+<script type='text/javascript' src='https://vanityportraitstudio.my.site.com/ESWKnowldgebaseagent1767616036188/assets/js/bootstrap.min.js' onload='initEmbeddedMessaging()'></script>
+
 </body>
 </html>
